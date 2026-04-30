@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<title>Календар задач</title>
+{% extends "head_panel.html" %}
+{% block title %}Календар задач{% endblock %}
+{% block content %}
+<style>
+body {
+    background: #f3f4f6;
+    font-family: sans-serif;
+    padding: 24px;
+}
+
+.wrap {
+    max-width: 900px;
+    margin: auto;
+}
+
+.title {
+    font-size: 28px;
+    font-weight: 700;
+    text-align: center;
+    margin-bottom: 20px;
+    color: #1f2937;
+}
+
+.nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 18px;
+}
+
+.btn {
+    background: #d1d5db;
+    border: none;
+    padding: 8px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.btn:hover {
+    background: #9ca3af;
+}
+
+.month {
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 8px;
+}
+
+.week {
+    text-align: center;
+    font-weight: 600;
+    color: #6b7280;
+    padding: 6px 0;
+}
+
+.day {
+    aspect-ratio: 1;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: 0.15s;
+    font-weight: 500;
+}
+
+.day:hover {
+    transform: scale(1.05);
+}
+
+.load-0 { background: #dcfce7; }
+.load-1 { background: #bbf7d0; }
+.load-2 { background: #a7f3d0; }
+.load-3 { background: #6ee7b7; }
+.load-4 { background: #fde68a; }
+.load-5 { background: #fcd34d; }
+.load-6 { background: #fbbf24; }
+.load-7 { background: #f97316; }
+.load-8 { background: #ea580c; color: white; }
+.load-9 { background: #ef4444; color: white; }
+.load-10 { background: #dc2626; color: white; }
+
+.weekend { background: #e5e7eb; color: #6b7280; }
+.today {
+    outline: 3px solid #2563eb;
+    font-weight: bold;
+}
+</style>
+</head>
+
+<body>
+
+<div class="wrap">
+<h1 class="title">📅 Календар задач</h1>
+<div class="nav">
+    <button class="btn" onclick="prev()">◀</button>
+    <div id="month" class="month"></div>
+    <button class="btn" onclick="next()">▶</button>
+</div>
+<div id="cal" class="grid"></div>
+</div>
+
+<script>
+let date = new Date()
+let loadHours = {}
+
+function fmt(d){
+    let y = d.getFullYear()
+    let m = String(d.getMonth() + 1).padStart(2,'0')
+    let day = String(d.getDate()).padStart(2,'0')
+    return `${y}-${m}-${day}`
+}
+
+function getTaskDuration(task){
+    let start = new Date(task.plan_start_time)
+    let end = new Date(task.plan_end_time)
+    let durationMs = end - start
+    let durationHours = durationMs / (1000 * 60 * 60)
+    return durationHours
+}
+
+function getLoadClass(hours){
+    if(hours === 0) return 'load-0'
+    if(hours < 1) return 'load-1'
+    if(hours < 2) return 'load-2'
+    if(hours < 3) return 'load-3'
+    if(hours < 4) return 'load-4'
+    if(hours < 5) return 'load-5'
+    if(hours < 6) return 'load-6'
+    if(hours < 7) return 'load-7'
+    if(hours < 8) return 'load-8'
+    if(hours < 9) return 'load-9'
+    return 'load-10'
+}
+
+function formatHours(hours){
+    if(hours === 0) return '0 год'
+    if(hours < 1) return `${Math.round(hours * 60)} хв`
+    let whole = Math.floor(hours)
+    let minutes = Math.round((hours - whole) * 60)
+    if(minutes === 0) return `${whole} год`
+    return `${whole} год ${minutes} хв`
+}
+
+async function load(){
+    const res = await fetch('/api/tasks')
+    if(res.status === 401) location = '/login'
+    const data = await res.json()
+    loadHours = {}
+
+    data.forEach(task => {
+        let d = task.plan_start_time.split('T')[0]
+        let duration = getTaskDuration(task)
+        loadHours[d] = (loadHours[d] || 0) + duration
+    })
+    render()
+}
+
+function render(){
+    let y = date.getFullYear()
+    let m = date.getMonth()
+    document.getElementById('month').innerText =
+        date.toLocaleString('uk-UA', {month:'long'}) + ' ' + y
+    let cal = document.getElementById('cal')
+    cal.innerHTML = ''
+    const week = ['ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ', 'НД']
+    week.forEach(d => {
+        cal.innerHTML += `<div class="week">${d}</div>`
+    })
+    let first = (new Date(y, m, 1).getDay() + 6) % 7
+    let days = new Date(y, m + 1, 0).getDate()
+    for(let i = 0; i < first; i++){
+        cal.innerHTML += `<div></div>`
+    }
+    let today = fmt(new Date())
+
+for(let d = 1; d <= days; d++){
+        let cur = new Date(y, m, d)
+        let key = fmt(cur)
+
+        let hours = loadHours[key] || 0
+        let isWeekend = (cur.getDay() === 0 || cur.getDay() === 6)
+        let isToday = (key === today)
+
+        let cls = isWeekend ? 'weekend' : getLoadClass(hours)
+
+        cal.innerHTML += `
+            <div class="day ${cls} ${isToday ? 'today' : ''}"
+                 onclick="openDay('${key}')"
+                 title="${formatHours(hours)}">
+                ${d}
+            </div>
+        `
+    }
+}
+
+function prev(){
+    date.setMonth(date.getMonth()-1)
+    render()
+}
+
+function next(){
+    date.setMonth(date.getMonth()+1)
+    render()
+}
+
+function openDay(day){
+    window.location.href = `/day_page/${day}`
+}
+
+load()
+</script>
+{% endblock %}
+</body>
+</html>

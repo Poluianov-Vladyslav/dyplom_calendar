@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<title>{% block title %}Навігаційна панель{% endblock %}</title>
+
+<style>
+body {
+    margin:0;
+    font-family:sans-serif;
+    background:#f3f4f6;
+}
+
+.navbar {
+    width:100%;
+    background:#1f2937;
+    color:white;
+    padding-top:12px;
+    padding-bottom:12px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+}
+.nav-left {
+    font-weight:600;
+}
+.nav-right button {
+    margin-left:10px;
+    padding:6px 12px;
+    border:none;
+    border-radius:6px;
+    cursor:pointer;
+}
+.nav-right button:hover {
+    filter: brightness(0.85);
+}
+.logout { background:#ef4444; color:white; }
+.settings { background:#3b82f6; color:white; }
+
+.modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+}
+.modal-content {
+    background: white;
+    padding: 24px;
+    border-radius: 12px;
+    width: 340px;
+}
+.modal-content h3 {
+    margin: 0 0 16px 0;
+}
+.modal-content input {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    box-sizing: border-box;
+}
+.modal-buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 16px;
+}
+.modal-buttons button {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+}
+.save-btn {
+    background: #3b82f6;
+    color: white;
+}
+.cancel-btn {
+    background: #e5e7eb;
+}
+.toast {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: #333;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 8px;
+    z-index: 200;
+    animation: fadeOut 3s forwards;
+}
+@keyframes fadeOut {
+    0% { opacity: 1; }
+    70% { opacity: 1; }
+    100% { opacity: 0; visibility: hidden; }
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="navbar">
+    <div class="nav-left">📅 Task Manager</div>
+    <div class="nav-right">
+        <label class="user-name"> Добрий день {{ username }}</label>
+        <button class="settings" onclick="openPasswordModal()">Змінити пароль</button>
+        <button class="logout" onclick="logout()">Вийти</button>
+    </div>
+</div>
+
+<div class="container">
+    {% block content %}{% endblock %}
+</div>
+
+<div id="passwordModal" class="modal">
+    <div class="modal-content">
+        <h3> Зміна паролю</h3>
+        <input type="password" id="oldPassword" placeholder="Старий пароль">
+        <input type="password" id="newPassword" placeholder="Новий пароль">
+        <input type="password" id="confirmPassword" placeholder="Підтвердіть новий пароль">
+        <div class="modal-buttons">
+            <button class="save-btn" onclick="changePassword()">Зберегти</button>
+            <button class="cancel-btn" onclick="closePasswordModal()">Скасувати</button>
+        </div>
+    </div>
+</div>
+<script>
+function logout(){
+    fetch('/api/logout', {method:'POST'})
+    .then(() => window.location.href = '/login')
+}
+
+function openPasswordModal() {
+    document.getElementById('passwordModal').style.display = 'flex';
+    document.getElementById('oldPassword').value = '';
+    document.getElementById('newPassword').value = '';
+    document.getElementById('confirmPassword').value = '';
+}
+
+function closePasswordModal() {
+    document.getElementById('passwordModal').style.display = 'none';
+}
+
+function showMessage(msg, isError) {
+    let toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.style.background = isError ? '#ef4444' : '#10b981';
+    toast.textContent = msg;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+}
+
+async function changePassword() {
+    let oldPwd = document.getElementById('oldPassword').value;
+    let newPwd = document.getElementById('newPassword').value;
+    let confirmPwd = document.getElementById('confirmPassword').value;
+    if (!oldPwd || !newPwd) {
+        showMessage('Заповніть всі поля', true);
+        return;
+    }
+    if (newPwd !== confirmPwd) {
+        showMessage('Новий пароль і підтвердження не співпадають', true);
+        return;
+    }
+    try {
+        let res = await fetch('/api/change-password', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                old_password: oldPwd,
+                new_password: newPwd
+            })
+        });
+        let data = await res.json();
+        if (res.ok) {
+            showMessage('Пароль успішно змінено!');
+            closePasswordModal();
+        } else {
+            showMessage((data.detail || 'Помилка зміни паролю'), true);
+        }
+    } catch(e) {
+        showMessage(' Помилка з\'єднання', true);
+    }
+}
+document.getElementById('passwordModal')?.addEventListener('click', function(e) {
+    if (e.target === this) closePasswordModal();});
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closePasswordModal();});
+</script>
+
+</body>
+</html>

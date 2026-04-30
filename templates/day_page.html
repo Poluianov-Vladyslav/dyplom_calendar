@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<title>День</title>
+{% extends "head_panel.html" %}
+{% block title %}Календар задач{% endblock %}
+{% block content %}
+<style>
+body {
+    margin: 0;
+    font-family: sans-serif;
+    background: #f3f4f6;
+}
+
+.wrap {
+    display: flex;
+    height: 100vh;
+}
+
+.sidebar {
+    width: 220px;
+    background: #1f2937;
+    color: white;
+    padding: 20px;
+}
+
+.sidebar h2 {
+    margin-bottom: 20px;
+}
+
+.btn {
+    display: block;
+    width: 100%;
+    margin-bottom: 10px;
+    padding: 10px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+}
+.btn:hover {
+    filter: brightness(0.85);
+}
+.add { background: #10b981; color: white; }
+.back { background: #374151; color: white; }
+
+.main {
+    flex: 1;
+    padding: 20px;
+    overflow: auto;
+}
+
+.title {
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: 20px;
+}
+
+.timeline-container {
+    overflow-x: auto;
+    position: relative;
+}
+
+.timeline-header {
+    display: flex;
+    border-bottom: 2px solid #ddd;
+    position: sticky;
+    top: 0;
+    background: #f3f4f6;
+    z-index: 10;
+}
+
+.hour-cell {
+    width: 60px;
+    text-align: center;
+    padding: 8px 0;
+    font-size: 12px;
+    color: #666;
+    border-right: 1px solid #eee;
+    flex-shrink: 0;
+}
+
+.tasks-grid {
+    position: relative;
+    min-height: 500px;
+}
+
+.task-row {
+    position: relative;
+    height: 80px;
+    border-bottom: 1px solid #e5e7eb;
+    margin-top: 4px;
+}
+
+.task {
+    position: absolute;
+    top: 4px;
+    height: 72px;
+    border-radius: 8px;
+    padding: 6px 8px;
+    font-size: 12px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: 0.1s;
+    box-sizing: border-box;
+}
+
+.p1 { background: #22c55e; color: white; }
+.p2 { background: #3b82f6; color: white; }
+.p3 { background: #eab308; color: #1f2937; }
+.p4 { background: #f97316; color: white; }
+.p5 { background: #ef4444; color: white; }
+
+.delete-btn {
+    position: absolute;
+    right: 6px;
+    top: 4px;
+    background: rgba(0,0,0,0.3);
+    border: none;
+    color: white;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 10px;
+    padding: 2px 6px;
+}
+.delete-btn:hover {
+    background: rgba(0,0,0,0.6);
+}
+
+.toast {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: #333;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 8px;
+    z-index: 200;
+    animation: fadeOut 3s forwards;
+}
+@keyframes fadeOut {
+    0% { opacity: 1; }
+    70% { opacity: 1; }
+    100%{ opacity: 0; visibility: hidden; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+    <div class="sidebar">
+        <h2>📅 Меню</h2>
+        <button class="btn back" onclick="back()">← Назад</button>
+        <button class="btn add" onclick="openModal()">+ Задача</button>
+    </div>
+
+    <div class="main">
+        <div id="title" class="title"></div>
+        <div class="timeline-container">
+            <div id="timelineHeader" class="timeline-header"></div>
+            <div id="tasksGrid" class="tasks-grid"></div>
+        </div>
+    </div>
+</div>
+
+<div id="modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); align-items:center; justify-content:center; z-index:100;">
+<div style="background:white; padding:20px; border-radius:10px; width:320px;">
+    <h3 style="margin:0 0 15px 0;">📝 Нова задача</h3>
+    <input id="name" placeholder="Назва задачі" style="width:100%; margin-bottom:10px; padding:8px; box-sizing:border-box; border:1px solid #ddd; border-radius:6px;">
+    <div style="display:flex; gap:10px; margin-bottom:10px;">
+        <input type="time" id="start" style="flex:1; padding:8px; border:1px solid #ddd; border-radius:6px;">
+        <input type="time" id="end" style="flex:1; padding:8px; border:1px solid #ddd; border-radius:6px;">
+    </div>
+    <textarea id="description" placeholder="Опис (необов'язково)" style="width:100%; margin-bottom:10px; padding:8px; border:1px solid #ddd; border-radius:6px; resize:vertical; min-height:60px;"></textarea>
+    <select id="priority" style="width:100%; margin-bottom:15px; padding:8px; border:1px solid #ddd; border-radius:6px;">
+        <option value="1">Низький (1)</option>
+        <option value="2" selected>Середній (2)</option>
+        <option value="3">Високий (3)</option>
+        <option value="4">Дуже високий (4)</option>
+        <option value="5">Критичний (5)</option>
+    </select>
+    <div style="display:flex; gap:10px;">
+        <button onclick="createTask()" style="flex:1; background:#3b82f6; color:white; border:none; padding:10px; border-radius:6px; cursor:pointer;">Створити</button>
+        <button onclick="closeModal()" style="flex:1; background:#e5e7eb; border:none; padding:10px; border-radius:6px; cursor:pointer;">Скасувати</button>
+    </div>
+</div>
+</div>
+
+<script>
+let day = window.location.pathname.split('/').pop()
+let currentTasks = []
+
+const HOUR_WIDTH = 60
+const MINUTE_WIDTH = 1
+
+
+function escapeHtml(text){
+    if(!text) return ''
+    const div = document.createElement('div')
+    div.textContent = text
+    return div.innerHTML
+}
+
+function showMessage(msg, isError = false){
+    let toast = document.createElement('div')
+    toast.className = 'toast'
+    toast.style.background = isError ? '#ef4444' : '#10b981'
+    toast.textContent = msg
+    document.body.appendChild(toast)
+    setTimeout(() => toast.remove(), 3000)
+}
+
+function back(){
+    window.location.href = "/calendar"
+}
+
+function openModal(){
+    let now = new Date()
+    let hours = String(now.getHours()).padStart(2,'0')
+    let minutes = String(now.getMinutes()).padStart(2,'0')
+    document.getElementById('start').value = `${hours}:${minutes}`
+    document.getElementById('end').value = `${hours}:${minutes}`
+    document.getElementById('name').value = ''
+    document.getElementById('priority').value = '2'
+    document.getElementById('description').value = ''
+    document.getElementById('modal').style.display = 'flex'
+}
+
+function closeModal(){
+    document.getElementById('modal').style.display = 'none'
+}
+
+function renderTimelineHeader(){
+    let header = document.getElementById('timelineHeader')
+    header.innerHTML = ''
+
+    for(let h = 0; h < 24; h++){
+        header.innerHTML += `
+            <div class="hour-cell">
+                ${String(h).padStart(2,'0')}:00
+            </div>
+        `
+    }
+}
+
+function toMinutes(timeStr){
+    let [h, m] = timeStr.split(':')
+    return (+h) * 60 + (+m)
+}
+
+function getLeftPosition(timeStr){
+    let minutes = toMinutes(timeStr)
+    return minutes * MINUTE_WIDTH
+}
+
+function getTaskWidth(startTime, endTime){
+    let startMin = toMinutes(startTime)
+    let endMin = toMinutes(endTime)
+    return (endMin - startMin) * MINUTE_WIDTH
+}
+
+// Рендер задач
+function renderTasks(tasks){
+    let grid = document.getElementById('tasksGrid')
+    grid.innerHTML = ''
+
+    if(!tasks.length){
+        grid.innerHTML = '<div style="padding:20px; text-align:center; color:#999;">Немає задач на цей день</div>'
+        return
+    }
+
+    tasks.forEach((task, index) => {
+        let start = task.plan_start_time.slice(11,16)
+        let end = task.plan_end_time.slice(11,16)
+
+        let left = getLeftPosition(start)
+        let width = getTaskWidth(start, end)
+
+        let finalLeft = Math.max(0, left)
+        let finalWidth = Math.min(24 * 60 * MINUTE_WIDTH - finalLeft, width)
+
+        if(finalWidth <= 0) return
+        let row = document.createElement('div')
+        row.className = 'task-row'
+        row.style.width = (24 * HOUR_WIDTH) + 'px'
+        let taskEl = document.createElement('div')
+        taskEl.className = `task ${getPriorityClass(task.priority)}`
+        taskEl.style.left = finalLeft + 'px'
+        taskEl.style.width = finalWidth + 'px'
+        taskEl.innerHTML = `
+            <b>${escapeHtml(task.title)}</b><br>
+            <small>${start} - ${end}</small>
+            ${task.description ? `<div style="font-size:10px;">${escapeHtml(task.description)}</div>` : ''}
+            <button class="delete-btn" onclick="deleteTask(${task.id}, event)">🗑️</button>
+        `
+        row.appendChild(taskEl)
+        grid.appendChild(row)
+    })
+}
+
+function getPriorityClass(priority){
+    return `p${priority}`
+}
+
+async function load(){
+    document.getElementById('title').innerHTML = "📅 " + day
+    renderTimelineHeader()
+    try {
+        let res = await fetch('/api/tasks/day/' + day)
+        if(res.status === 401) location = '/login'
+        if(!res.ok) throw new Error()
+
+        currentTasks = await res.json()
+        renderTasks(currentTasks)
+    } catch(e) {
+        showMessage('Помилка завантаження задач', true)
+    }
+}
+
+async function createTask(){
+    let name = document.getElementById('name').value.trim()
+    if(!name){
+        showMessage('Введіть назву задачі', true)
+        return
+    }
+    let startTime = document.getElementById('start').value
+    let endTime = document.getElementById('end').value
+    let description = document.getElementById('description').value.trim()
+    if(!startTime || !endTime){
+        showMessage('Виберіть час початку та завершення', true)
+        return
+    }
+    if(startTime >= endTime){
+        showMessage('Час початку має бути раніше часу завершення', true)
+        return
+    }
+    let priority = parseInt(document.getElementById('priority').value)
+    let start = day + "T" + startTime + ":00"
+    let end = day + "T" + endTime + ":00"
+    try {
+        let res = await fetch('/api/tasks', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                title: name,
+                description: description,
+                plan_start_time: start,
+                plan_end_time: end,
+                priority: priority
+            })
+        })
+        if(res.status === 409){
+            showMessage('❌ Конфлікт часу! Задача перетинається з іншою', true)
+            return
+        }
+        if(!res.ok){
+            let err = await res.json()
+            showMessage('❌ ' + (err.detail || 'Помилка створення'), true)
+            return
+        }
+        closeModal()
+        await load()
+        showMessage('✅ Задачу створено')
+    } catch(e){
+        showMessage('❌ Помилка з\'єднання', true)
+    }
+}
+
+async function deleteTask(taskId, event){
+    event.stopPropagation()
+    if(!confirm('Видалити цю задачу?')) return
+
+    try {
+        let res = await fetch(`/api/tasks/${taskId}`, {
+            method: 'DELETE'
+        })
+        if(res.status === 401) location = '/login'
+        if(res.status === 404){
+            showMessage('Задачу не знайдено', true)
+            return
+        }
+        if(!res.ok) throw new Error()
+        await load()
+        showMessage('✅ Задачу видалено')
+    } catch(e){
+        showMessage('❌ Помилка видалення', true)
+    }
+}
+
+document.getElementById('modal').addEventListener('click', function(e){
+    if(e.target === this) closeModal()
+})
+document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape') closeModal()
+})
+
+load()
+</script>
+{% endblock %}
+</body>
+</html>
