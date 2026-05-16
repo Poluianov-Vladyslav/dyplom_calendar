@@ -30,8 +30,8 @@ class TaskRepository:
         task = cursor.fetchone()
 
         conn.close()
-
         return task
+
     def get_in_range(self, user_id, start, end):
         conn = get_connection()
         cursor = conn.cursor()
@@ -50,11 +50,19 @@ class TaskRepository:
         return deleted > 0
 
     def update(self, user_id, task_id, title, description, plan_start, plan_end, priority, difficulty):
+
+        now = datetime.now()
+        plan_end_dt = datetime.fromisoformat(plan_end)
+        if plan_end_dt < now:
+            status = "missed"
+        else:
+            status = "planning"
+
         conn = get_connection()
         cursor = conn.cursor()
         cursor.execute("""
-            UPDATE tasks SET title = ?, description = ?, plan_start_time = ?, plan_end_time = ?, priority = ?, difficulty = ?
-            WHERE id = ? AND user_id = ?""", (title, description, plan_start, plan_end, priority, difficulty, task_id, user_id))
+            UPDATE tasks SET title = ?, description = ?, plan_start_time = ?, plan_end_time = ?, priority = ?, difficulty = ?, status = ?
+            WHERE id = ? AND user_id = ?""", (title, description, plan_start, plan_end, priority, difficulty, status, task_id, user_id))
 
         conn.commit()
         updated = cursor.rowcount
@@ -75,7 +83,7 @@ class TaskRepository:
             return False
 
         cursor.execute("""UPDATE tasks SET status = 'in_progress' WHERE id = ? AND user_id = ?""", (task_id, user_id))
-        cursor.execute("""INSERT INTO task_statistics (task_id, actual_start_time) VALUES (?, ?)""", (task_id, datetime.now().isoformat()))
+        cursor.execute("""INSERT OR REPLACE INTO task_statistics (task_id, actual_start_time) VALUES (?, ?)""", (task_id, datetime.now().isoformat()))
         conn.commit()
         conn.close()
         return True
@@ -84,11 +92,19 @@ class TaskRepository:
         conn = get_connection()
         cursor = conn.cursor()
 
-        cursor.execute("""SELECT ts.actual_start_time FROM task_statistics ts
+        cursor.execute("""SELECT t.status, ts.actual_start_time FROM task_statistics ts
             JOIN tasks t ON t.id = ts.task_id WHERE ts.task_id = ? AND t.user_id = ?""", (task_id, user_id))
 
         stat = cursor.fetchone()
         if not stat:
+            conn.close()
+            return False
+
+        if stat["status"] not in ["in_progress", "late"]:
+            conn.close()
+            return False
+
+        if not stat["actual_start_time"]:
             conn.close()
             return False
 
@@ -99,7 +115,7 @@ class TaskRepository:
 
         cursor.execute("""UPDATE tasks SET status = 'done' WHERE id = ? AND user_id = ?""", (task_id, user_id))
         cursor.execute("""UPDATE task_statistics SET completed_at = ?, actual_time = ?, pleasure = ?, productivity_score = ? WHERE task_id = ?""",
-                       (completed_at, actual_time, pleasure, productivity_score, task_id))
+                       (completed_at_str, actual_time, pleasure, productivity_score, task_id))
         conn.commit()
         conn.close()
         return True
@@ -113,6 +129,51 @@ class TaskRepository:
         cursor.execute("""UPDATE tasks SET status = 'late' 
                 WHERE user_id=? AND status IN ('in_progress') AND plan_end_time<?""",
                        (user_id, datetime.now().isoformat()))
-
         conn.commit()
         conn.close()
+        return True
+
+    def get_analytics_data(self, user_id):
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT t.id, t.title, t.priority, t.difficulty, t.status,
+            t.plan_start_time, t.plan_end_time, t.created_at,
+            ts.actual_start_time, ts.completed_at, ts.actual_time,
+            ts.pleasure, ts.productivity_score
+            FROM tasks t LEFT JOIN task_statistics ts ON ts.task_id = t.id
+            WHERE t.user_id = ?
+            ORDER BY t.created_at DESC""", (user_id,))
+        tasks = cursor.fetchall()
+        conn.close()
+        return [dict(task) for task in tasks]
+
+    def get_tasks_by_status(self, user_id):
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""SELECT status, COUNT(*) as count
+        FROM tasks WHERE user_id = ? GROUP BY status""", (user_id,))
+        stats = cursor.fetchall()
+        conn.close()
+        return {stat["status"]: stat["count"] for stat in stats}
+
+    def get_tasks_by_priority(self, user_id):
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""SELECT priority, COUNT(*) as count FROM tasks
+        WHERE user_id = ? GROUP BY priority ORDER BY priority""", (user_id,))
+        stats = cursor.fetchall()
+        conn.close()
+        return {stat["priority"]: stat["count"] for stat in stats}
+
+    def get_tasks_by_difficulty(self, user_id):
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""SELECT difficulty, COUNT(*) as count FROM tasks
+        WHERE user_id = ? GROUP BY difficulty ORDER BY difficulty""", (user_id,))
+        stats = cursor.fetchall()
+        conn.close()
+        return {stat["difficulty"]: stat["count"] for stat in stats}
+
+
+

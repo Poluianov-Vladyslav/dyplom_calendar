@@ -1,0 +1,88 @@
+body {
+    background: #f3f4f6;
+    font-family: sans-serif;
+    padding: 24px;
+}
+
+.wrap {
+    max-width: 900px;
+    margin: auto;
+}
+
+.title {
+    font-size: 28px;
+    font-weight: 700;
+    text-align: center;
+    margin-bottom: 20px;
+    color: #1f2937;
+}
+
+.nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 18px;
+}
+
+.btn {
+    background: #d1d5db;
+    border: none;
+    padding: 8px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.btn:hover {
+    background: #9ca3af;
+}
+
+.month {
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 8px;
+}
+
+.week {
+    text-align: center;
+    font-weight: 600;
+    color: #6b7280;
+    padding: 6px 0;
+}
+
+.day {
+    aspect-ratio: 1;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: 0.15s;
+    font-weight: 500;
+}
+
+.day:hover {
+    transform: scale(1.05);
+}
+
+.load-0 { background: #dcfce7; }
+.load-1 { background: #bbf7d0; }
+.load-2 { background: #a7f3d0; }
+.load-3 { background: #6ee7b7; }
+.load-4 { background: #fde68a; }
+.load-5 { background: #fcd34d; }
+.load-6 { background: #fbbf24; }
+.load-7 { background: #f97316; }
+.load-8 { background: #ea580c; color: white; }
+.load-9 { background: #ef4444; color: white; }
+.load-10 { background: #dc2626; color: white; }
+
+.weekend { background: #e5e7eb; color: #6b7280; }
+.today {
+    outline: 3px solid #2563eb;
+    font-weight: bold;
+}

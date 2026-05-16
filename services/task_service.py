@@ -60,7 +60,7 @@ class TaskService:
         )
         conflicts = [task for task in conflicts if task["id"] != task_id]
         if conflicts:
-            raise ValueError("Конфлікт задач по часу")
+            raise ValueError("Конфтаклікт задач по часу")
 
         success = self.repo.update(
             task_id=task_id,
@@ -70,7 +70,7 @@ class TaskService:
             plan_start=start.isoformat(),
             plan_end=end.isoformat(),
             priority=priority,
-            difficulty=difficulty
+            difficulty=difficulty,
         )
         return success
 
@@ -101,7 +101,7 @@ class TaskService:
         task = self.repo.get_by_id(task_id, user_id)
         if not task:
             raise ValueError("Задачу не знайдено")
-        if task["status"] != "in_progress":
+        if task["status"] not in ["in_progress", "late"]:
             raise ValueError("Задача має бути у статусі in_progress")
         if pleasure < 1 or pleasure > 5:
             raise ValueError("pleasure має бути 1-5")

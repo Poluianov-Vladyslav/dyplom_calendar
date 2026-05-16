@@ -1,300 +1,18 @@
-<!DOCTYPE html>
-<html lang="uk">
-<head>
-<meta charset="UTF-8">
-<title>День</title>
 {% extends "head_panel.html" %}
-{% block title %}Календар задач{% endblock %}
+{% block title %}День - Задачі{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="/static/day_page.css">{% endblock %}
 {% block content %}
-<style>
-body {
-    margin: 0;
-    font-family: sans-serif;
-    background: #f3f4f6;
-}
 
-.wrap {
-    display: flex;
-    height: 100vh;
-}
-
-.sidebar {
-    width: 220px;
-    background: #1f2937;
-    color: white;
-    padding: 20px;
-}
-
-.sidebar h2 {
-    margin-bottom: 20px;
-}
-
-.btn {
-    display: block;
-    width: 100%;
-    margin-bottom: 10px;
-    padding: 10px;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-}
-.btn:hover {
-    filter: brightness(0.85);
-}
-.add { background: #10b981; color: white; }
-.back { background: #374151; color: white; }
-
-.main {
-    flex: 1;
-    padding: 20px;
-    overflow: auto;
-}
-
-.title {
-    font-size: 24px;
-    font-weight: 700;
-    margin-bottom: 20px;
-}
-
-.timeline-container {
-    overflow-x: auto;
-    position: relative;
-}
-
-.timeline-header {
-    display: flex;
-    border-bottom: 2px solid #ddd;
-    position: sticky;
-    top: 0;
-    background: #f3f4f6;
-    z-index: 10;
-    width: 1440px;
-}
-
-.hour-cell {
-    width: 60px;
-    text-align: center;
-    padding: 8px 0;
-    font-size: 12px;
-    color: #666;
-    border-right: 1px solid #eee;
-    flex-shrink: 0;
-}
-
-.tasks-grid {
-    position: relative;
-    min-height: 500px;
-    width: 1440px;
-}
-
-.task-row {
-    position: relative;
-    height: 130px;
-    border-bottom: 1px solid #e5e7eb;
-    margin-top: 4px;
-}
-
-.task {
-    position: absolute;
-    top: 4px;
-    height: 100px;
-    border-radius: 8px;
-    padding: 6px 8px;
-    font-size: 12px;
-    overflow: hidden;
-    cursor: pointer;
-    transition: 0.1s;
-    box-sizing: border-box;
-    overflow-y: auto;
-}
-.hour-cell {
-    box-sizing: border-box;
-}
-
-.timeline-header {
-    width: 1440px;
-}
-
-.p1 { background: #22c55e; color: white; }
-.p2 { background: #3b82f6; color: white; }
-.p3 { background: #eab308; color: white; }
-.p4 { background: #f97316; color: white; }
-.p5 { background: #ef4444; color: white; }
-
-.d1 { border-left: 4px solid #22c55e; }
-.d2 { border-left: 4px solid #84cc16; }
-.d3 { border-left: 4px solid #eab308; }
-.d4 { border-left: 4px solid #f97316; }
-.d5 { border-left: 4px solid #ef4444; }
-
-.delete-btn {
-    position: absolute;
-    right: 6px;
-    top: 4px;
-    background: rgba(0,0,0,0.3);
-    border: none;
-    color: white;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 10px;
-    padding: 2px 6px;
-}
-.delete-btn:hover {
-    background: rgba(0,0,0,0.6);
-}
-
-.toast {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    background: #333;
-    color: white;
-    padding: 10px 20px;
-    border-radius: 8px;
-    z-index: 200;
-}
-@keyframes fadeOut {
-    0% { opacity: 1; }
-    70% { opacity: 1; }
-    100%{ opacity: 0; visibility: hidden; }
-}
-.difficulty-badge {
-    display: inline-block;
-    font-size: 10px;
-    padding: 2px 6px;
-    border-radius: 10px;
-    background: rgba(0,0,0,0.15);
-    margin-top: 4px;
-}
-.status-badge {
-    display: inline-block;
-    padding: 2px 6px;
-    border-radius: 8px;
-    font-size: 10px;
-    margin-top: 4px;
-    background: rgba(0,0,0,0.2);
-}
-
-.task-actions {
-    margin-top: 8px;
-    display: flex;
-    gap: 6px;
-    flex-wrap: wrap;
-}
-
-.task-btn {
-    border: none;
-    border-radius: 4px;
-    padding: 4px 8px;
-    font-size: 10px;
-    cursor: pointer;
-    transition: 0.1s;
-}
-.task-btn:hover {
-    filter: brightness(0.9);
-}
-
-.start-btn { background: #2563eb; color: white; }
-.finish-btn { background: #16a34a; color: white; }
-.edit-btn { background: #374151; color: white; }
-.delete-btn {
-    background: #dc2626;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    padding: 4px 8px;
-    font-size: 10px;
-    cursor: pointer;
-}
-.delete-btn:hover { filter: brightness(0.9); }
-
-.modal {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.5);
-    align-items: center;
-    justify-content: center;
-    z-index: 100;
-}
-.modal-content {
-    background: white;
-    padding: 20px;
-    border-radius: 10px;
-    width: 400px;
-    max-width: 90%;
-}
-.modal-content h3 {
-    margin: 0 0 15px 0;
-}
-.modal-content input,
-.modal-content textarea,
-.modal-content select {
-    width: 100%;
-    margin-bottom: 10px;
-    padding: 8px;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    box-sizing: border-box;
-}
-.modal-content textarea {
-    resize: vertical;
-    min-height: 60px;
-}
-.modal-buttons {
-    display: flex;
-    gap: 10px;
-    margin-top: 10px;
-}
-.modal-buttons button {
-    flex: 1;
-    padding: 10px;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-}
-.save-btn { background: #3b82f6; color: white; }
-.cancel-btn { background: #e5e7eb; }
-
-.time-group {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 10px;
-}
-.time-group input {
-    flex: 1;
-    margin-bottom: 0;
-}
-.task.done {
-    opacity: 0.7;
-}
-.task.in_progress {
-    box-shadow: 0 0 10px rgba(59,130,246,0.5);
-}
-
-.task.missed {
-    background: #f10000;
-    color: white;
-}
-.task.late {
-    background: #f97316;
-    color: white;
-}
-</style>
-</head>
-<body>
-<div class="wrap">
-    <div class="sidebar">
-        <h2>📅 Меню</h2>
-        <button class="btn back" onclick="back()">← Назад</button>
-        <button class="btn add" onclick="openCreateModal()">+ Задача</button>
+<div class="day-layout">
+    <div class="time-panel" id="timePanel"></div>
+    <div class="tasks-panel">
+        <div id="tasksContainer" class="tasks-container"></div>
     </div>
-
-    <div class="main">
-        <div id="title" class="title"></div>
-        <div class="timeline-container">
-            <div id="timelineHeader" class="timeline-header"></div>
-            <div id="tasksGrid" class="tasks-grid"></div>
+    <div class="details-panel" id="detailsPanel">
+        <button class="create-task-btn" onclick="openCreateModal()">Створити задачу</button>
+        <h3>📋 Деталі задачі</h3>
+        <div id="taskDetails" class="task-details">
+            <p class="no-selection">Натисніть на задачу</p>
         </div>
     </div>
 </div>
@@ -303,6 +21,7 @@ body {
     <div class="modal-content">
         <h3 id="modalTitle">📝 Нова задача</h3>
         <input type="text" id="taskName" placeholder="Назва задачі">
+        <input type="date" id="taskDate" value="">
         <div class="time-group">
             <input type="time" id="taskStart" step="60" style="flex:1; padding:8px;">
             <input type="time" id="taskEnd" step="60" style="flex:1; padding:8px;">
@@ -333,9 +52,8 @@ body {
 <script>
 let day = window.location.pathname.split('/').pop()
 let currentTasks = []
-
-const HOUR_WIDTH = 60
-const MINUTE_WIDTH = 1
+let selectedTaskId = null
+const TASK_ROW_HEIGHT = 80
 
 function getStatusText(status) {
     const statuses = {
@@ -379,31 +97,48 @@ function back(){
 
 function openCreateModal() {
     document.getElementById('editTaskId').value = ''
-    document.getElementById('modalTitle').innerText = 'Нова задача'
+    document.getElementById('modalTitle').innerText = '📝 Нова задача'
+
+    let today = new Date()
+    let year = today.getFullYear()
+    let month = String(today.getMonth() + 1).padStart(2, '0')
+    let dayNum = String(today.getDate()).padStart(2, '0')
+
     let now = new Date()
     now.setMinutes(0, 0, 0)
-    document.getElementById('taskStart').value = now.toISOString().slice(0, 16)
-    let end = new Date(now)
-    end.setHours(end.getHours() + 1)
-    document.getElementById('taskEnd').value = end.toISOString().slice(0, 16)
+    let startHour = now.getHours()
+    let startTime = `${String(startHour).padStart(2, '0')}:00`
+    let endHour = (startHour + 1) % 24
+    let endTime = `${String(endHour).padStart(2, '0')}:00`
+
+    document.getElementById('taskDate').value = `${year}-${month}-${dayNum}`
+    document.getElementById('taskStart').value = startTime
+    document.getElementById('taskEnd').value = endTime
     document.getElementById('taskName').value = ''
     document.getElementById('taskDesc').value = ''
     document.getElementById('taskPriority').value = '2'
     document.getElementById('taskDifficulty').value = '3'
     document.getElementById('modal').style.display = 'flex'
+    document.getElementById('taskName').focus()
 }
 
 function openEditModal(taskId, event) {
-    event.stopPropagation()
+    if (event && event.stopPropagation) event.stopPropagation()
     let task = currentTasks.find(t => t.id === taskId)
-    if (!task) return
+    if (!task) {
+        showMessage('Помилка: задачу не знайдено', true)
+        return
+    }
+
 
     document.getElementById('editTaskId').value = task.id
     document.getElementById('modalTitle').innerText = '✏️ Редагувати задачу'
     document.getElementById('taskName').value = task.title
     document.getElementById('taskDesc').value = task.description || ''
+    document.getElementById('taskDate').value = task.plan_start_time.slice(0, 10)
     document.getElementById('taskStart').value = task.plan_start_time.slice(11, 16)
     document.getElementById('taskEnd').value = task.plan_end_time.slice(11, 16)
+
     document.getElementById('taskPriority').value = task.priority
     document.getElementById('taskDifficulty').value = task.difficulty || 3
     document.getElementById('modal').style.display = 'flex'
@@ -413,11 +148,11 @@ function closeModal(){
     document.getElementById('modal').style.display = 'none'
 }
 
-function renderTimelineHeader() {
-    let header = document.getElementById('timelineHeader')
-    header.innerHTML = ''
+function renderTimePanel() {
+    let panel = document.getElementById('timePanel')
+    panel.innerHTML = ''
     for (let h = 0; h < 24; h++) {
-        header.innerHTML += `<div class="hour-cell">${String(h).padStart(2, '0')}:00</div>`
+        panel.innerHTML += `<div class="time-slot">${String(h).padStart(2, '0')}:00</div>`
     }
 }
 
@@ -426,23 +161,81 @@ function toMinutes(timeStr){
     return (+h) * 60 + (+m)
 }
 
-function getLeftPosition(timeStr) {
-    return toMinutes(timeStr) * MINUTE_WIDTH
-}
-
-function getTaskWidth(startTime, endTime) {
-    return (toMinutes(endTime) - toMinutes(startTime)) * MINUTE_WIDTH
-}
-
 function getPriorityClass(priority) {
     return `p${priority}`
 }
-function getDifficultyClass(difficulty) {
-    return `d${difficulty}`
+
+function getPriorityColor(priority) {
+    const colors = {1: '#22c55e', 2: '#3b82f6', 3: '#eab308', 4: '#f97316', 5: '#ef4444'}
+    return colors[priority] || '#6b7280'
+}
+
+function getPriorityText(priority) {
+    const texts = {1: 'Низький', 2: 'Середній', 3: 'Високий', 4: 'Дуже високий', 5: 'Критичний'}
+    return texts[priority] || 'Невідомо'
+}
+
+function getTopPosition(timeStr) {
+    let minutes = toMinutes(timeStr)
+    return (minutes / 60) * TASK_ROW_HEIGHT
+}
+
+function getTaskHeight(startTime, endTime) {
+    let startMin = toMinutes(startTime)
+    let endMin = toMinutes(endTime)
+    return ((endMin - startMin) / 60) * TASK_ROW_HEIGHT
+}
+
+function selectTask(taskId) {
+    selectedTaskId = taskId
+    renderDetailsPanel(currentTasks)
+    document.querySelectorAll('.task-card').forEach(card => {
+        if (card.dataset.taskId === taskId) {
+            card.classList.add('selected')
+        } else {
+            card.classList.remove('selected')
+        }
+    })
+}
+
+function editSelectedTask() {
+    console.log('editSelectedTask called, selectedTaskId:', selectedTaskId) // Для дебагу
+    if (selectedTaskId) {
+        let task = currentTasks.find(t => t.id === selectedTaskId)
+        if (task) {
+            openEditModal(selectedTaskId, {stopPropagation: () => {}})
+        } else {
+            showMessage('Помилка: задачу не знайдено', true)
+        }
+    } else {
+        showMessage('Виберіть задачу для редагування', true)
+    }
+}
+
+async function deleteSelectedTask() {
+    if (selectedTaskId && confirm('Видалити задачу?')) {
+        await deleteTask(selectedTaskId, null)
+        selectedTaskId = null
+    }
+}
+
+async function deleteTask(taskId, event) {
+    if (event) event.stopPropagation()
+    try {
+        let res = await fetch(`/api/tasks/${taskId}`, {method: 'DELETE'})
+        if (res.ok) {
+            await load()
+            showMessage('🗑️ Задачу видалено')
+        } else {
+            showMessage('Помилка видалення', true)
+        }
+    } catch(e) {
+        showMessage('Помилка з\'єднання', true)
+    }
 }
 
 async function startTask(taskId, event) {
-    event.stopPropagation()
+    if (event) event.stopPropagation()
     try {
         let res = await fetch(`/api/tasks/${taskId}/start`, {method: 'POST'})
         if (!res.ok) throw new Error()
@@ -454,7 +247,7 @@ async function startTask(taskId, event) {
 }
 
 async function finishTask(taskId, event) {
-    event.stopPropagation()
+    if (event) event.stopPropagation()
     let pleasure = prompt("Оцініть задоволення від задачі (1-5):", "3")
     let productivity = prompt("Оцініть продуктивність (0-100):", "70")
     if (!pleasure || !productivity) return
@@ -470,31 +263,15 @@ async function finishTask(taskId, event) {
         })
         if (!res.ok) throw new Error()
         await load()
-        showMessage('Задачу завершено')
+        showMessage('✅ Задачу завершено')
     } catch(e) {
         showMessage('Помилка завершення задачі', true)
     }
 }
 
-async function deleteTask(taskId, event) {
-    event.stopPropagation()
-    if (!confirm('Видалити задачу?')) return
-    try {
-        let res = await fetch(`/api/tasks/${taskId}`, {method: 'DELETE'})
-        if (res.ok) {
-            await load()
-            showMessage('Задачу видалено')
-        } else {
-            showMessage('Помилка видалення', true)
-        }
-    } catch(e) {
-        showMessage('Помилка з\'єднання', true)
-    }
-}
-
 async function saveTask() {
     let taskId = document.getElementById('editTaskId').value
-    let taskDate = day
+    let taskDate = document.getElementById('taskDate').value
     let startTime = document.getElementById('taskStart').value
     let endTime = document.getElementById('taskEnd').value
     let data = {
@@ -525,8 +302,9 @@ async function saveTask() {
         })
 
         if (res.status === 409) {
-            showMessage('Конфлікт часу! Задача перетинається з іншою', true)
-            return
+            const errorData = await res.json();
+            showMessage(errorData.detail || 'Конфлікт часу! Задача перетинається з іншою', true);
+            return;
         }
         if (res.ok) {
             closeModal()
@@ -540,70 +318,92 @@ async function saveTask() {
     }
 }
 
+function renderDetailsPanel(tasks) {
+    let panel = document.getElementById('taskDetails')
+    if (!tasks.length) {
+        panel.innerHTML = '<p class="no-selection">📭 Немає задач на цей день</p>'
+        return
+    }
+    let selectedTask = tasks.find(t => t.id === selectedTaskId)
+    if (!selectedTask) {
+        panel.innerHTML = '<p class="no-selection">👈 Натисніть на задачу</p>'
+        return
+    }
+
+    let start = selectedTask.plan_start_time.slice(11, 16)
+    let end = selectedTask.plan_end_time.slice(11, 16)
+
+    panel.innerHTML = `
+        <div class="detail-title">📌 ${escapeHtml(selectedTask.title)}</div>
+        <div class="detail-time">⏰ ${start} - ${end}</div>
+        <div class="detail-priority" style="background: ${getPriorityColor(selectedTask.priority)};">
+            ${getPriorityText(selectedTask.priority)}
+        </div>
+        <div class="detail-difficulty">📊 Складність: ${getDifficultyText(selectedTask.difficulty || 3)}</div>
+        <div class="detail-status">📌 Статус: ${getStatusText(selectedTask.status)}</div>
+        ${selectedTask.description ? `<div class="detail-desc">📝 ${escapeHtml(selectedTask.description)}</div>` : ''}
+        <div class="detail-actions">
+            ${selectedTask.status === 'planning' ? `<button class="detail-btn start" onclick="startTask(${selectedTask.id}, event)">▶ Почати</button>` : ''}
+            ${selectedTask.status === 'in_progress' || selectedTask.status === 'late' ? `<button class="detail-btn finish" onclick="finishTask(${selectedTask.id}, event)">✅ Завершити</button>` : ''}
+        </div>
+        <div class="detail-edit-delete">
+            <button class="detail-edit-btn" onclick="editSelectedTask()">✏️ Редагувати</button>
+            <button class="detail-delete-btn" onclick="deleteSelectedTask()">🗑️ Видалити</button>
+        </div>`
+}
 
 function renderTasks(tasks) {
-    let grid = document.getElementById('tasksGrid')
-    grid.innerHTML = ''
+    let container = document.getElementById('tasksContainer')
+    container.innerHTML = ''
+
     if (!tasks.length) {
-        grid.innerHTML = '<div style="padding:20px; text-align:center; color:#999;">Немає задач на цей день</div>'
+        container.innerHTML = '<div class="empty-state">📭 Немає задач на цей день</div>'
         return
     }
 
     tasks.forEach(task => {
         let start = task.plan_start_time.slice(11, 16)
         let end = task.plan_end_time.slice(11, 16)
-        let left = getLeftPosition(start)
-        let width = getTaskWidth(start, end)
-        let finalLeft = Math.max(0, left)
-        let finalWidth = Math.min(24 * 60 * MINUTE_WIDTH - finalLeft, width)
+        let top = getTopPosition(start)
+        let height = getTaskHeight(start, end)
+        let finalTop = Math.max(0, top)
+        let finalHeight = Math.min(24 * TASK_ROW_HEIGHT - finalTop, height)
 
-        if (finalWidth <= 0) return
+        if (finalHeight <= 0) return
 
-        let row = document.createElement('div')
-        row.className = 'task-row'
-        row.style.width = (24 * HOUR_WIDTH) + 'px'
+        let taskCard = document.createElement('div')
+        taskCard.className = `task-card ${getPriorityClass(task.priority)}`
+        taskCard.dataset.taskId = task.id
+        taskCard.style.top = finalTop + 'px'
+        taskCard.style.height = finalHeight + 'px'
+        taskCard.onclick = () => selectTask(task.id)
 
-        let taskEl = document.createElement('div')
-        taskEl.className = `task ${getPriorityClass(task.priority)} ${task.status} ${getDifficultyClass(task.difficulty || 3)}`
-        taskEl.style.left = finalLeft + 'px'
-        taskEl.style.width = finalWidth + 'px'
-
-        taskEl.innerHTML = `
-            <b>${escapeHtml(task.title)}</b><br>
-            <small>${start} - ${end}</small>
-            ${task.description ? `<div style="font-size:10px;">${escapeHtml(task.description)}</div>` : ''}
-            <div class="difficulty-badge">📊 ${getDifficultyText(task.difficulty || 3)}</div>
-            <div class="status-badge">${getStatusText(task.status)}</div>
-            <div class="task-actions">
-                ${task.status === 'planning' ? `
-                    <button class="task-btn start-btn" onclick="startTask(${task.id}, event)">▶ Почати</button>
-                ` : ''}
-                ${task.status === 'in_progress' ? `
-                    <button class="task-btn finish-btn" onclick="finishTask(${task.id}, event)">✅ Завершити</button>
-                ` : ''}
-                <button class="task-btn edit-btn" onclick="openEditModal(${task.id}, event)">✏️</button>
-                <button class="delete-btn" onclick="deleteTask(${task.id}, event)">🗑️</button>
+        taskCard.innerHTML = `
+            <div class="task-header">
+                <span class="task-title">${escapeHtml(task.title)}</span>
+                <span class="task-time">${start} - ${end}</span>
             </div>
-        `
-        row.appendChild(taskEl)
-        grid.appendChild(row)
+            <div class="task-badges">
+                <span class="difficulty-badge">📊 ${getDifficultyText(task.difficulty || 3)}</span>
+                <span class="status-badge">${getStatusText(task.status)}</span>
+            </div>`
+        container.appendChild(taskCard)
     })
 }
 
 async function load() {
-    document.getElementById('title').innerHTML = "📅 " + day
-    renderTimelineHeader()
+    renderTimePanel()
     try {
         let res = await fetch(`/api/tasks/day/${day}`)
         if (res.status === 401) location = '/login'
         if (!res.ok) throw new Error()
         currentTasks = await res.json()
         renderTasks(currentTasks)
+        renderDetailsPanel(currentTasks)
     } catch(e) {
         showMessage('Помилка завантаження задач', true)
     }
 }
-
 document.getElementById('modal').addEventListener('click', function(e){
     if(e.target === this) closeModal()
 })
@@ -614,5 +414,3 @@ document.addEventListener('keydown', function(e){
 load()
 </script>
 {% endblock %}
-</body>
-</html>

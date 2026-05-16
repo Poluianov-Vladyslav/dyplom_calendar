@@ -1,0 +1,211 @@
+{% extends "head_panel.html" %}
+{% block title %}Аналітика продуктивності{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="/static/analytics.css">
+{% endblock %}
+{% block content %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<div class="analytics-container">
+    <h1 class="analytics-title">📊 Аналітика продуктивності</h1>
+
+    <div id="recommendationsContainer" class="recommendation-card">
+        <div class="skeleton"></div>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-card"><div class="stat-number" id="totalTasks">0</div><div class="stat-label">Всього задач</div></div>
+        <div class="stat-card"><div class="stat-number" id="completedTasks">0</div><div class="stat-label">✅ Виконано</div></div>
+        <div class="stat-card"><div class="stat-number" id="completionRate">0%</div><div class="stat-label">📈 Виконання</div></div>
+        <div class="stat-card"><div class="stat-number" id="currentStreak">0</div><div class="stat-label">🔥 Поточна серія</div></div>
+    </div>
+    <div class="stats-grid">
+        <div class="stat-card status-planning"><div class="stat-number" id="planningTasks">0</div><div class="stat-label">📝 Заплановано</div></div>
+        <div class="stat-card status-progress"><div class="stat-number" id="inProgressTasks">0</div><div class="stat-label">⏳ В процесі</div></div>
+        <div class="stat-card status-late"><div class="stat-number" id="lateTasks">0</div><div class="stat-label">⚠️ Прострочено</div></div>
+        <div class="stat-card status-missed"><div class="stat-number" id="missedTasks">0</div><div class="stat-label">❌ Пропущено</div></div>
+    </div>
+    <div class="stats-grid">
+        <div class="stat-card"><div class="stat-number" id="totalWorkHours">0</div><div class="stat-label">⏱️ Всього годин</div></div>
+        <div class="stat-card"><div class="stat-number" id="avgProductivityScore">0</div><div class="stat-label">⭐ Сер. продуктивність</div><div class="stat-desc">(0-100)</div></div>
+        <div class="stat-card"><div class="stat-number" id="avgPleasure">0</div><div class="stat-label">😊 Сер. задоволення</div><div class="stat-desc">(1-5)</div></div>
+        <div class="stat-card"><div class="stat-number" id="overdueRatio">0%</div><div class="stat-label">⚠️ Прострочено</div></div>
+    </div>
+
+    <div class="charts-row">
+        <div class="chart-card"><h3>📊 Продуктивність по днях тижня</h3><canvas id="weeklyChart"></canvas></div>
+        <div class="chart-card"><h3>⏰ Продуктивність по годинах</h3><canvas id="hourlyChart"></canvas></div>
+    </div>
+
+    <div class="chart-card"><h3>📅 Динаміка виконання (останні 30 днів)</h3><canvas id="timelineChart"></canvas></div>
+
+    <div class="charts-row">
+        <div class="chart-card"><h3>⭐ Вплив складності на продуктивність</h3><canvas id="difficultyChart"></canvas></div>
+        <div class="chart-card"><h3>😊 Вплив задоволення на продуктивність</h3><canvas id="pleasureChart"></canvas></div>
+    </div>
+
+    <div class="chart-card">
+        <h3>📋 Детальна статистика по днях тижня</h3>
+        <div class="table-wrapper">
+            <table class="stats-table">
+                <thead>
+                    <tr><th>День</th><th>Всього</th><th>✅ Виконано</th><th>📈 %</th><th>😊 Задовол.</th><th>⭐ Продукт.</th><th>⏱️ Сер. час</th></tr>
+                </thead>
+                <tbody id="weeklyStatsBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="chart-card">
+        <h3>📊 Точність оцінювання часу</h3>
+        <div class="estimation-row">
+            <div>📋 Заплановано: <strong id="avgPlanned">0</strong> хв</div>
+            <div>⏱️ Фактично: <strong id="avgActual">0</strong> хв</div>
+            <div>📈 Коефіцієнт: <strong id="avgRatio">0</strong></div>
+            <div class="full-width"><strong id="efficiencyDesc">-</strong></div>
+        </div>
+    </div>
+</div>
+
+<script>
+let charts = {};
+
+function createBarChart(canvasId, labels, data, color) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    if (charts[canvasId]) charts[canvasId].destroy();
+
+    charts[canvasId] = new Chart(canvas, {
+        type: 'bar',
+        data: { labels, datasets: [{ data, backgroundColor: color, borderRadius: 8 }] },
+        options: { responsive: true, maintainAspectRatio: true, scales: { y: { beginAtZero: true, max: 100 } } }
+    });
+}
+
+function createLineChart(canvasId, labels, data, color) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    if (charts[canvasId]) charts[canvasId].destroy();
+
+    charts[canvasId] = new Chart(canvas, {
+        type: 'line',
+        data: { labels, datasets: [{ data, borderColor: color, backgroundColor: color + '20', fill: true, tension: 0.3 }] },
+        options: { responsive: true, maintainAspectRatio: true, scales: { y: { beginAtZero: true, max: 100 } } }
+    });
+}
+
+function createAreaChart(canvasId, labels, data, color) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    if (charts[canvasId]) charts[canvasId].destroy();
+
+    charts[canvasId] = new Chart(canvas, {
+        type: 'line',
+        data: { labels, datasets: [{ data, borderColor: color, backgroundColor: color + '20', fill: true, tension: 0.3 }] },
+        options: { responsive: true, maintainAspectRatio: true }
+    });
+}
+
+async function loadAnalytics() {
+    try {
+        const res = await fetch('/api/analytics');
+        if (res.status === 401) { location.href = '/login'; return; }
+        const data = await res.json();
+        document.getElementById('totalTasks').innerText = data.total || 0;
+        document.getElementById('completedTasks').innerText = data.completed || 0;
+        document.getElementById('completionRate').innerText = (data.completion_rate || 0) + '%';
+        document.getElementById('currentStreak').innerText = data.completion_streak?.current_streak || 0;
+        document.getElementById('planningTasks').innerText = data.planning || 0;
+        document.getElementById('inProgressTasks').innerText = data.in_progress || 0;
+        document.getElementById('lateTasks').innerText = data.late || 0;
+        document.getElementById('missedTasks').innerText = data.missed || 0;
+        document.getElementById('totalWorkHours').innerText = data.total_work_hours || 0;
+        document.getElementById('avgProductivityScore').innerText = data.avg_productivity_score || 0;
+        document.getElementById('avgPleasure').innerText = data.avg_pleasure || 0;
+        document.getElementById('overdueRatio').innerText = (data.overdue_ratio || 0) + '%';
+
+        if (data.recommendations?.length > 0) {
+            const container = document.getElementById('recommendationsContainer');
+            container.innerHTML = '';
+            data.recommendations.forEach(rec => {
+                const div = document.createElement('div');
+                div.className = 'rec-item';
+                div.innerHTML = `
+                    <div class="recommendation-title">${escapeHtml(rec.title)}</div>
+                    <div class="recommendation-message">${escapeHtml(rec.message)}</div>
+                    ${rec.detail ? `<div class="recommendation-detail">${escapeHtml(rec.detail)}</div>` : ''}
+                    <div class="recommendation-suggestion">${escapeHtml(rec.suggestion)}</div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        if (data.weekly_performance?.length) {
+            createBarChart('weeklyChart',
+                data.weekly_performance.map(d => d.day),
+                data.weekly_performance.map(d => d.avg_productivity),
+                '#4e8bee');
+
+            const tableBody = document.getElementById('weeklyStatsBody');
+            tableBody.innerHTML = data.weekly_performance.map(day => {
+                const completion = day.completion_rate || day.avg_productivity || 0;
+                return `<tr>
+                    <td>${escapeHtml(day.day)}</td>
+                    <td>${day.total_tasks || 0}</td>
+                    <td>${day.completed || 0}</td>
+                    <td><div class="progress-bar"><div class="progress-fill" style="width: ${completion}%;"></div></div>${completion}%</td>
+                    <td>${day.avg_pleasure || 0}</td>
+                    <td>${day.avg_productivity || 0}</td>
+                    <td>${day.avg_time || 0} хв</td>
+                </tr>`;
+            }).join('');
+        }
+
+        if (data.hourly_performance?.length) {
+            createLineChart('hourlyChart',
+                data.hourly_performance.map(d => d.hour + ':00'),
+                data.hourly_performance.map(d => d.avg_productivity), '#2acb66');
+        }
+
+        if (data.timeline?.length) {
+            createAreaChart('timelineChart',
+                data.timeline.map(d => d.date.slice(5)),
+                data.timeline.map(d => d.count),'#f67a23');
+        }
+
+        if (data.difficulty_productivity?.length) {
+            createBarChart('difficultyChart',
+                data.difficulty_productivity.map(d => 'Рівень ' + d.difficulty),
+                data.difficulty_productivity.map(d => d.avg_productivity),
+                '#784eda');
+        }
+
+        if (data.pleasure_productivity_correlation?.length) {
+            createBarChart('pleasureChart',
+                data.pleasure_productivity_correlation.map(d => 'Задоволення ' + d.pleasure),
+                data.pleasure_productivity_correlation.map(d => d.avg_productivity),'#dc3939');
+        }
+
+        if (data.planned_vs_actual) {
+            document.getElementById('avgPlanned').innerText = data.planned_vs_actual.average_planned_minutes || 0;
+            document.getElementById('avgActual').innerText = data.planned_vs_actual.average_actual_minutes || 0;
+            document.getElementById('avgRatio').innerText = data.planned_vs_actual.average_efficiency_ratio || 0;
+            document.getElementById('efficiencyDesc').innerText = data.planned_vs_actual.efficiency_desc || '-';
+        }
+
+    } catch (error) {
+        console.error('Помилка:', error);
+        const container = document.getElementById('recommendationsContainer');
+        container.innerHTML = '<div class="recommendation-title">Помилка завантаження даних</div>';
+    }
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;}
+
+loadAnalytics();
+</script>
+{% endblock %}

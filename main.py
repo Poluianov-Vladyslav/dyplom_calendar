@@ -1,19 +1,23 @@
 from fastapi import FastAPI, Request, Form, HTTPException, Depends
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
 from db.init_db import init_db
 from services.authentication import AuthService
 from utils.security import verify_token
 from pydantic import BaseModel
 from typing import Optional
 from services.task_service import TaskService
+from services.task_analytics_server import AnalyticsService
 
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
 init_db()
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 auth_service = AuthService()
 task_service = TaskService()
+analytics_service = AnalyticsService()
 
 class TaskCreate(BaseModel):
     title: str
@@ -253,7 +257,6 @@ def update_task(task_id: int, task: TaskUpdate, user=Depends(get_current_user)):
 def start_task(task_id: int, user=Depends(get_current_user)):
     try:
         success = task_service.start_task(user["user_id"], task_id)
-        print(f"success = {success}")
         if not success:
             raise HTTPException(status_code=404, detail="Task not found")
         return {"success": True, "message": "Задача розпочалася"}
@@ -276,3 +279,16 @@ def complete_task(task_id: int, request: TaskCompleteRequest, user=Depends(get_c
         return {"success": True, "message": "Задача виконана"}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/api/analytics")
+def get_analytics(user=Depends(get_current_user)):
+    try:
+        analytics = analytics_service.get_analytics(user["user_id"])
+        return analytics
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/analytics", response_class=HTMLResponse)
+def analytics_page(request: Request, user=Depends(get_current_user)):
+    return templates.TemplateResponse(
+        "analytics.html", {"request": request, "username": user["username"]})

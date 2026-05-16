@@ -1,105 +1,8 @@
-<!DOCTYPE html>
-<html lang="uk">
-<head>
-<meta charset="UTF-8">
-<title>Календар задач</title>
 {% extends "head_panel.html" %}
 {% block title %}Календар задач{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="/static/calendar.css">{% endblock %}
+
 {% block content %}
-<style>
-body {
-    background: #f3f4f6;
-    font-family: sans-serif;
-    padding: 24px;
-}
-
-.wrap {
-    max-width: 900px;
-    margin: auto;
-}
-
-.title {
-    font-size: 28px;
-    font-weight: 700;
-    text-align: center;
-    margin-bottom: 20px;
-    color: #1f2937;
-}
-
-.nav {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 18px;
-}
-
-.btn {
-    background: #d1d5db;
-    border: none;
-    padding: 8px 14px;
-    border-radius: 8px;
-    cursor: pointer;
-}
-
-.btn:hover {
-    background: #9ca3af;
-}
-
-.month {
-    font-size: 20px;
-    font-weight: 600;
-}
-
-.grid {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 8px;
-}
-
-.week {
-    text-align: center;
-    font-weight: 600;
-    color: #6b7280;
-    padding: 6px 0;
-}
-
-.day {
-    aspect-ratio: 1;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: 0.15s;
-    font-weight: 500;
-}
-
-.day:hover {
-    transform: scale(1.05);
-}
-
-.load-0 { background: #dcfce7; }
-.load-1 { background: #bbf7d0; }
-.load-2 { background: #a7f3d0; }
-.load-3 { background: #6ee7b7; }
-.load-4 { background: #fde68a; }
-.load-5 { background: #fcd34d; }
-.load-6 { background: #fbbf24; }
-.load-7 { background: #f97316; }
-.load-8 { background: #ea580c; color: white; }
-.load-9 { background: #ef4444; color: white; }
-.load-10 { background: #dc2626; color: white; }
-
-.weekend { background: #e5e7eb; color: #6b7280; }
-.today {
-    outline: 3px solid #2563eb;
-    font-weight: bold;
-}
-</style>
-</head>
-
-<body>
-
 <div class="wrap">
 <h1 class="title">📅 Календар задач</h1>
 <div class="nav">
@@ -121,12 +24,22 @@ function fmt(d){
     return `${y}-${m}-${day}`
 }
 
+function parseLocalISODate(dateStr) {
+    if (dateStr.includes('T')) {
+        let [date, time] = dateStr.split('T');
+        let [year, month, day] = date.split('-');
+        let [hour, minute, second] = time.split(':');
+        return new Date(year, month-1, day, hour, minute, second || 0);
+    }
+    return new Date(dateStr);
+}
+
 function getTaskDuration(task){
-    let start = new Date(task.plan_start_time)
-    let end = new Date(task.plan_end_time)
-    let durationMs = end - start
-    let durationHours = durationMs / (1000 * 60 * 60)
-    return durationHours
+    let start = parseLocalISODate(task.plan_start_time);
+    let end = parseLocalISODate(task.plan_end_time);
+    let durationMs = end - start;
+    let durationHours = durationMs / (1000 * 60 * 60);
+    return durationHours;
 }
 
 function getLoadClass(hours){
@@ -180,8 +93,7 @@ function render(){
     let first = (new Date(y, m, 1).getDay() + 6) % 7
     let days = new Date(y, m + 1, 0).getDate()
     for(let i = 0; i < first; i++){
-        cal.innerHTML += `<div></div>`
-    }
+        cal.innerHTML += `<div></div>`}
     let today = fmt(new Date())
 
 for(let d = 1; d <= days; d++){
@@ -199,8 +111,7 @@ for(let d = 1; d <= days; d++){
                  onclick="openDay('${key}')"
                  title="${formatHours(hours)}">
                 ${d}
-            </div>
-        `
+            </div>`
     }
 }
 

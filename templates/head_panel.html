@@ -1,115 +1,21 @@
 <!DOCTYPE html>
 <html lang="uk">
 <head>
-<meta charset="UTF-8">
-<title>{% block title %}Навігаційна панель{% endblock %}</title>
-
-<style>
-body {
-    margin:0;
-    font-family:sans-serif;
-    background:#f3f4f6;
-}
-
-.navbar {
-    width:100%;
-    background:#1f2937;
-    color:white;
-    padding-top:12px;
-    padding-bottom:12px;
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-}
-.nav-left {
-    font-weight:600;
-}
-.nav-right button {
-    margin-left:10px;
-    padding:6px 12px;
-    border:none;
-    border-radius:6px;
-    cursor:pointer;
-}
-.nav-right button:hover {
-    filter: brightness(0.85);
-}
-.logout { background:#ef4444; color:white; }
-.settings { background:#3b82f6; color:white; }
-
-.modal {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.5);
-    align-items: center;
-    justify-content: center;
-    z-index: 200;
-}
-.modal-content {
-    background: white;
-    padding: 24px;
-    border-radius: 12px;
-    width: 340px;
-}
-.modal-content h3 {
-    margin: 0 0 16px 0;
-}
-.modal-content input {
-    width: 100%;
-    padding: 10px;
-    margin-bottom: 12px;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    box-sizing: border-box;
-}
-.modal-buttons {
-    display: flex;
-    gap: 10px;
-    margin-top: 16px;
-}
-.modal-buttons button {
-    flex: 1;
-    padding: 10px;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-}
-.save-btn {
-    background: #3b82f6;
-    color: white;
-}
-.cancel-btn {
-    background: #e5e7eb;
-}
-.toast {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    background: #333;
-    color: white;
-    padding: 10px 20px;
-    border-radius: 8px;
-    z-index: 200;
-    animation: fadeOut 3s forwards;
-}
-@keyframes fadeOut {
-    0% { opacity: 1; }
-    70% { opacity: 1; }
-    100% { opacity: 0; visibility: hidden; }
-}
-
-</style>
+    <meta charset="UTF-8">
+    <title>{% block title %}Навігаційна панель{% endblock %}</title>
+    <link rel="stylesheet" href="/static/head_panel.css">
+    {% block extra_css %}{% endblock %}
 </head>
 
 <body>
-
 <div class="navbar">
     <div class="nav-left">📅 Task Manager</div>
     <div class="nav-right">
         <label class="user-name"> Добрий день {{ username }}</label>
-        <button class="settings" onclick="openPasswordModal()">Змінити пароль</button>
-        <button class="logout" onclick="logout()">Вийти</button>
+        <a href="/calendar" class="nav-btn calendar">📅 Календар</a>
+        <a href="/analytics" class="nav-btn analytics">📊 Аналітика</a>
+        <button class="nav-btn settings" onclick="openPasswordModal()">Змінити пароль</button>
+        <button class="nav-btn logout" onclick="logout()">Вийти</button>
     </div>
 </div>
 
@@ -124,8 +30,8 @@ body {
         <input type="password" id="newPassword" placeholder="Новий пароль">
         <input type="password" id="confirmPassword" placeholder="Підтвердіть новий пароль">
         <div class="modal-buttons">
-            <button class="save-btn" onclick="changePassword()">Зберегти</button>
-            <button class="cancel-btn" onclick="closePasswordModal()">Скасувати</button>
+            <button class="nav-btn settings" onclick="changePassword()">Зберегти</button>
+            <button class="nav-btn logout" onclick="closePasswordModal()">Скасувати</button>
         </div>
     </div>
 </div>
@@ -133,6 +39,7 @@ body {
 function logout(){
     fetch('/api/logout', {method:'POST'})
     .then(() => window.location.href = '/login')
+    .catch(() => window.location.href = '/login');
 }
 
 function openPasswordModal() {
@@ -187,6 +94,7 @@ async function changePassword() {
         showMessage(' Помилка з\'єднання', true);
     }
 }
+
 document.getElementById('passwordModal')?.addEventListener('click', function(e) {
     if (e.target === this) closePasswordModal();});
 document.addEventListener('keydown', function(e) {
