@@ -28,16 +28,24 @@ def init_db():
             description TEXT,
             plan_start_time TEXT NOT NULL,
             plan_end_time TEXT NOT NULL,
+            priority INTEGER CHECK(priority BETWEEN 1 AND 5),
+            difficulty INTEGER CHECK(difficulty BETWEEN 1 AND 5),
+            status TEXT DEFAULT 'planning' CHECK(status IN ('planning', 'in_progress', 'done', 'missed', 'late')),
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+    """)
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS task_statistics (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            task_id INTEGER NOT NULL UNIQUE,
             actual_start_time TEXT,
             completed_at TEXT,
             actual_time INTEGER DEFAULT 0,
-            priority INTEGER CHECK(priority BETWEEN 1 AND 5),
-            progress INTEGER DEFAULT 0 CHECK(progress BETWEEN 0 AND 100),
-            status TEXT DEFAULT 'planning' CHECK(status IN ('planning', 'in_progress', 'done', 'missed')),
-            difficulty INTEGER CHECK(difficulty BETWEEN 1 AND 5),
             pleasure INTEGER CHECK(pleasure BETWEEN 1 AND 5),
-            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            productivity_score INTEGER CHECK(productivity_score BETWEEN 0 AND 100),
+            FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
         )
     """)
     conn.commit()

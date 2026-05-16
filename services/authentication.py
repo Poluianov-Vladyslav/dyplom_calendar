@@ -2,13 +2,32 @@ from utils.security import hash_password, verify_password
 from repositories.users_repo import UserRepository
 from repositories.refresh_repo import RefreshTokenRepository
 import sqlite3
-from utils.jwt_auth import create_access_token, create_refresh_token, verify_token
+from utils.security import verify_token
 from datetime import datetime, timedelta
+from config import secret_key
+import jwt
 
 class AuthService:
+    SECRET_KEY = secret_key
+    ALGORITHM = "HS256"
+    ACCESS_EXPIRE_MINUTES = 20
+    REFRESH_EXPIRE_DAYS = 5
+
     def __init__(self):
         self.users = UserRepository()
         self.refresh_repo = RefreshTokenRepository()
+
+    def _create_access_token(self, data):
+        to_encode = data.copy()
+        expire = datetime.utcnow() + timedelta(minutes=self.ACCESS_EXPIRE_MINUTES)
+        to_encode.update({"exp": expire, "type": "access"})
+        return jwt.encode(to_encode, self.SECRET_KEY, algorithm=self.ALGORITHM)
+
+    def _create_refresh_token(self, data):
+        to_encode = data.copy()
+        expire = datetime.utcnow() + timedelta(days=self.REFRESH_EXPIRE_DAYS)
+        to_encode.update({"exp": expire, "type": "refresh"})
+        return jwt.encode(to_encode, self.SECRET_KEY, algorithm=self.ALGORITHM)
 
     def register(self, username, email, password):
         try:
@@ -26,11 +45,11 @@ class AuthService:
         password_hash = user["password_hash"]
         if not verify_password(password, password_hash):
             return None
-        access = create_access_token({
+        access = self._create_access_token({
             "user_id": user_id,
             "username": username
         })
-        refresh = create_refresh_token({
+        refresh = self._create_refresh_token({
             "user_id": user_id,
             "username": username
         })
@@ -53,7 +72,7 @@ class AuthService:
             return None
         user = self.users.get_by_id(data["user_id"])
         return {
-            "access_token": create_access_token({
+            "access_token": self._create_access_token({
                 "user_id": user["id"],
                 "username": user["username"]
             })

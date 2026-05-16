@@ -3,7 +3,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from db.init_db import init_db
 from services.authentication import AuthService
-from utils.jwt_auth import verify_token
+from utils.security import verify_token
 from pydantic import BaseModel
 from typing import Optional
 from services.task_service import TaskService
@@ -21,10 +21,23 @@ class TaskCreate(BaseModel):
     plan_start_time: str
     plan_end_time: str
     priority: int = 3
+    difficulty: int = 3
+
+class TaskUpdate(BaseModel):
+    title: str
+    description: Optional[str] = None
+    plan_start_time: str
+    plan_end_time: str
+    priority: int = 3
+    difficulty: int = 3
 
 class ChangePasswordRequest(BaseModel):
     old_password: str
     new_password: str
+
+class TaskCompleteRequest(BaseModel):
+    pleasure: int = 3
+    productivity_score: int = 70
 
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
@@ -54,7 +67,7 @@ async def auth_middleware(request: Request, call_next):
             )
             return response
     if request.url.path.startswith("/api"):
-        return JSONResponse(status_code=401, content={"detail": "Unauthorized"})
+        return JSONResponse(status_code=401, content={"detail": "Не авторизовано"})
     return RedirectResponse(url="/login", status_code=302)
 
 def get_current_user(request: Request):
@@ -153,20 +166,10 @@ def calendar(request: Request):
     user = getattr(request.state, "user", None)
     if not user:
         return RedirectResponse("/login")
-    return templates.TemplateResponse(
-        "calendar.html",
-        {"request": request, "username": user["username"]}
-    )
 
-@app.get("/logout")
-def logout_page(request: Request):
-    refresh_token = request.cookies.get("refresh_token")
-    if refresh_token:
-        auth_service.logout(refresh_token)
-    response = RedirectResponse("/login")
-    response.delete_cookie("access_token")
-    response.delete_cookie("refresh_token")
-    return response
+    task_service.update_missed_and_late_tasks(user["user_id"])
+    return templates.TemplateResponse(
+        "calendar.html", {"request": request, "username": user["username"]})
 
 @app.post("/api/tasks")
 def create_task_endpoint(task: TaskCreate, user=Depends(get_current_user)):
@@ -177,7 +180,8 @@ def create_task_endpoint(task: TaskCreate, user=Depends(get_current_user)):
             description=task.description,
             plan_start=task.plan_start_time,
             plan_end=task.plan_end_time,
-            priority=task.priority
+            priority=task.priority,
+            difficulty=task.difficulty
         )
         return {"success": True, "task_id": result}
     except ValueError as e:
@@ -203,6 +207,7 @@ def day_page(request: Request, date: str):
     user = getattr(request.state, "user", None)
     if not user:
         return RedirectResponse("/login")
+    task_service.update_missed_and_late_tasks(user["user_id"])
     return templates.TemplateResponse("day_page.html", {"request": request, "date": date, "username": user["username"]})
 
 @app.delete("/api/tasks/{task_id}")
@@ -221,5 +226,53 @@ def change_password_endpoint(request: ChangePasswordRequest, user=Depends(get_cu
             new_password=request.new_password
         )
         return {"success": True, "message": "Пароль успішно змінено"}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.put("/api/tasks/{task_id}")
+def update_task(task_id: int, task: TaskUpdate, user=Depends(get_current_user)):
+    try:
+        success = task_service.update(
+            task_id=task_id,
+            user_id=user["user_id"],
+            title=task.title,
+            description=task.description,
+            plan_start=task.plan_start_time,
+            plan_end=task.plan_end_time,
+            priority=task.priority,
+            difficulty=task.difficulty
+        )
+
+        if not success:
+            raise HTTPException(status_code=404, detail="Task not found")
+        return {"success": True}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/api/tasks/{task_id}/start")
+def start_task(task_id: int, user=Depends(get_current_user)):
+    try:
+        success = task_service.start_task(user["user_id"], task_id)
+        print(f"success = {success}")
+        if not success:
+            raise HTTPException(status_code=404, detail="Task not found")
+        return {"success": True, "message": "Задача розпочалася"}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/tasks/{task_id}/complete")
+def complete_task(task_id: int, request: TaskCompleteRequest, user=Depends(get_current_user)):
+    try:
+        success = task_service.complete_task(
+            user_id=user["user_id"],
+            task_id=task_id,
+            pleasure=request.pleasure,
+            productivity_score=request.productivity_score
+        )
+        if not success:
+            raise HTTPException(status_code=404, detail="Task not found")
+        return {"success": True, "message": "Задача виконана"}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
