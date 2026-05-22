@@ -11,6 +11,10 @@
 <div class="navbar">
     <div class="nav-left">📅 Task Manager</div>
     <div class="nav-right">
+        <div class="notification-icon" onclick="toggleNotifications()">
+            🔔
+            <span id="notificationBadge" class="notification-badge" style="display: none;">0</span>
+        </div>
         <label class="user-name"> Добрий день {{ username }}</label>
         <a href="/calendar" class="nav-btn calendar">📅 Календар</a>
         <a href="/analytics" class="nav-btn analytics">📊 Аналітика</a>
@@ -18,6 +22,20 @@
         <button class="nav-btn logout" onclick="logout()">Вийти</button>
     </div>
 </div>
+
+<div id="notificationsPanel" class="notifications-panel" style="display: none;">
+    <div class="notifications-header">
+        <h3>🔔 Сповіщення</h3>
+        <div class="notifications-header-buttons">
+            <button onclick="markAllRead()" class="mark-read-btn">Всі прочитані</button>
+            <button onclick="closeNotificationsPanel()" class="close-btn">✕</button>
+        </div>
+    </div>
+    <div id="notificationsList" class="notifications-list">
+        <div class="loading">Завантаження...</div>
+    </div>
+</div>
+
 
 <div class="container">
     {% block content %}{% endblock %}
@@ -36,6 +54,8 @@
     </div>
 </div>
 <script>
+let isPanelOpen = false;
+
 function logout(){
     fetch('/api/logout', {method:'POST'})
     .then(() => window.location.href = '/login')
@@ -94,11 +114,128 @@ async function changePassword() {
         showMessage(' Помилка з\'єднання', true);
     }
 }
+async function updateUnreadCount() {
+    try {
+        const res = await fetch('/api/notifications/unread-count');
+        const data = await res.json();
+        const badge = document.getElementById('notificationBadge');
+        if (data.count > 0) {
+            badge.style.display = 'flex';
+            badge.innerText = data.count > 99 ? '99+' : data.count;
+        } else {
+            badge.style.display = 'none';
+        }
+    } catch(e) {
+        console.error('Помилка отримання кількості сповіщень', e);
+    }
+}
 
+async function loadNotificationsList() {
+    const list = document.getElementById('notificationsList');
+    list.innerHTML = '<div class="loading">Завантаження...</div>';
+    try {
+        const res = await fetch('/api/notifications');
+        const notifications = await res.json();
+        if (notifications.length === 0) {
+            list.innerHTML = '<div class="empty">📭 Немає нових сповіщень</div>';
+        } else {
+            list.innerHTML = notifications.map(n => `
+                <div class="notification-item" data-id="${n.id}">
+                    <div class="notification-title">${escapeHtml(n.title)}</div>
+                    <div class="notification-message">${escapeHtml(n.message)}</div>
+                    <div class="notification-time">${formatDate(n.created_at)}</div>
+                    <button onclick="markRead(${n.id})" class="mark-read-btn-small">✓</button>
+                </div>
+            `).join('');
+        }
+    } catch(e) {
+        console.error('Помилка завантаження сповіщень', e);
+        list.innerHTML = '<div class="empty">Помилка завантаження</div>';
+    }
+}
+
+async function markRead(notificationId) {
+    try {
+        await fetch(`/api/notifications/${notificationId}/read`, {method: 'POST'});
+        updateUnreadCount();
+        if (isPanelOpen) {
+            loadNotificationsList();
+        }
+    } catch(e) {
+        console.error('Помилка', e);
+    }
+}
+
+async function markAllRead() {
+    try {
+        await fetch('/api/notifications/read-all', {method: 'POST'});
+        updateUnreadCount();
+        if (isPanelOpen) {
+            loadNotificationsList();
+        }
+    } catch(e) {
+        console.error('Помилка', e);
+    }
+}
+
+function toggleNotifications() {
+    const panel = document.getElementById('notificationsPanel');
+    if (panel.style.display === 'none') {
+        panel.style.display = 'block';
+        isPanelOpen = true;
+        loadNotificationsList();
+    } else {
+        panel.style.display = 'none';
+        isPanelOpen = false;
+    }
+}
+
+function closeNotificationsPanel() {
+    document.getElementById('notificationsPanel').style.display = 'none';
+    isPanelOpen = false;
+}
+
+function formatDate(dateStr) {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+    if (diffMins < 1) return 'Щойно';
+    if (diffMins < 60) return `${diffMins} хв тому`;
+    if (diffHours < 24) return `${diffHours} год тому`;
+    if (diffDays < 7) return `${diffDays} дн тому`;
+    return date.toLocaleDateString();
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+document.addEventListener('click', function(e) {
+    const panel = document.getElementById('notificationsPanel');
+    const icon = document.querySelector('.notification-icon');
+    if (panel && panel.style.display === 'block' && !panel.contains(e.target) && !icon.contains(e.target)) {
+        panel.style.display = 'none';
+        isPanelOpen = false;
+    }
+});
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeNotificationsPanel();
+        closePasswordModal();
+    }
+});
 document.getElementById('passwordModal')?.addEventListener('click', function(e) {
     if (e.target === this) closePasswordModal();});
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') closePasswordModal();});
+
+updateUnreadCount();
+setInterval(updateUnreadCount, 30000);
 </script>
 
 </body>

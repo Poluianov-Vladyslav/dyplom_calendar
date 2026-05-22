@@ -91,10 +91,6 @@ function showMessage(msg, isError = false) {
     setTimeout(() => toast.remove(), 3000)
 }
 
-function back(){
-    window.location.href = "/calendar"
-}
-
 function openCreateModal() {
     document.getElementById('editTaskId').value = ''
     document.getElementById('modalTitle').innerText = '📝 Нова задача'
@@ -407,9 +403,7 @@ async function load() {
 document.getElementById('modal').addEventListener('click', function(e){
     if(e.target === this) closeModal()
 })
-document.addEventListener('keydown', function(e){
-    if(e.key === 'Escape') closeModal()
-})
+
 
 load()
 </script>

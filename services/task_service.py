@@ -1,10 +1,12 @@
 from repositories.task_repo import TaskRepository
 from datetime import datetime
+from services.notification_service import NotificationService
 
 
 class TaskService:
     def __init__(self):
         self.repo = TaskRepository()
+        self.not_service = NotificationService()
 
     def create(self, user_id, title, description, plan_start, plan_end, priority, difficulty):
         try:
@@ -116,5 +118,8 @@ class TaskService:
         )
         return success
 
-    def update_missed_and_late_tasks(self, user_id):
-        return self.repo.update_miss_and_late_tasks(user_id)
+    def update_missed_and_late_tasks(self, user_id: int) -> bool:
+        changes = self.repo.update_miss_and_late_tasks(user_id)
+        if changes:
+            self.not_service.create_batch_notifications(changes, user_id)
+        return len(changes) > 0

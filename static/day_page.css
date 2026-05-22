@@ -209,47 +209,10 @@
     margin-bottom: 16px;
 }
 
-.toast {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    background: #333;
-    color: white;
-    padding: 12px 24px;
-    border-radius: 8px;
-    z-index: 1000;
-    animation: fadeOut 3s forwards;
-}
-
 @keyframes fadeOut {
     0% { opacity: 1; }
     70% { opacity: 1; }
     100% { opacity: 0; visibility: hidden; }
-}
-
-.modal {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0,0,0,0.5);
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-}
-
-.modal-content {
-    background: white;
-    padding: 24px;
-    border-radius: 16px;
-    width: 400px;
-    max-width: 90%;
-}
-
-.modal-content h3 {
-    margin: 0 0 16px 0;
 }
 
 .modal-content input, .modal-content textarea, .modal-content select {
@@ -269,12 +232,6 @@
 .time-group {
     display: flex;
     gap: 10px;
-}
-
-.modal-buttons {
-    display: flex;
-    gap: 10px;
-    margin-top: 16px;
 }
 
 .save-btn, .cancel-btn {

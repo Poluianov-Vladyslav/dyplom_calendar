@@ -9,15 +9,26 @@ from pydantic import BaseModel
 from typing import Optional
 from services.task_service import TaskService
 from services.task_analytics_server import AnalyticsService
+from scheduler import scheduler
+from contextlib import asynccontextmanager
+from services.notification_service import NotificationService
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    init_db()
+    scheduler.start()
+    yield
+    scheduler.stop()
+
+app = FastAPI(lifespan=lifespan)
 templates = Jinja2Templates(directory="templates")
-init_db()
 app.mount("/static", StaticFiles(directory="static"), name="static")
+init_db()
 
 auth_service = AuthService()
 task_service = TaskService()
 analytics_service = AnalyticsService()
+notification_service = NotificationService()
 
 class TaskCreate(BaseModel):
     title: str
@@ -292,3 +303,26 @@ def get_analytics(user=Depends(get_current_user)):
 def analytics_page(request: Request, user=Depends(get_current_user)):
     return templates.TemplateResponse(
         "analytics.html", {"request": request, "username": user["username"]})
+
+@app.get("/api/notifications")
+def get_notifications(user=Depends(get_current_user)):
+    return notification_service.get_unread(user["user_id"])
+
+@app.get("/api/notifications/unread-count")
+def get_unread_count(user=Depends(get_current_user)):
+    return {"count": notification_service.get_unread_count(user["user_id"])}
+
+@app.post("/api/notifications/{notification_id}/read")
+def mark_notification_read(notification_id: int, user=Depends(get_current_user)):
+    success = notification_service.mark_as_read(notification_id, user["user_id"])
+    return {"success": success}
+
+@app.post("/api/notifications/read-all")
+def mark_all_notifications_read(user=Depends(get_current_user)):
+    count = notification_service.mark_all_as_read(user["user_id"])
+    return {"success": True, "count": count}
+
+@app.delete("/api/notifications/old")
+def delete_old_notifications(user=Depends(get_current_user), days: int = 30):
+    count = notification_service.delete_old(user["user_id"], days)
+    return {"success": True, "count": count}
